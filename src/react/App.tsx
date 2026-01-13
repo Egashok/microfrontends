@@ -28,24 +28,26 @@ const App: React.FC = () => {
         () => getSnapshot().language
     );
 
+    const applySnapshot = React.useCallback(() => {
+        const nextSnapshot = getSnapshot();
+        setCount(nextSnapshot.count);
+        setMirror(nextSnapshot.count);
+        setLanguage(nextSnapshot.language);
+    }, []);
+
     React.useEffect(() => {
         const store = getStore();
-        if (!store) {
-            return;
-        }
+        const unsubscribe = store ? store.subscribe(applySnapshot) : undefined;
 
-        const unsubscribe = store.subscribe(() => {
-            const nextStore = getStore();
-            const nextCount = nextStore?.count ?? 0;
-            setCount(nextCount);
-            setMirror(nextCount);
-            setLanguage(nextStore?.language ?? DEFAULT_LANGUAGE);
-        });
+        window.addEventListener("store:change", applySnapshot);
 
         return () => {
-            unsubscribe();
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            window.removeEventListener("store:change", applySnapshot);
         };
-    }, []);
+    }, [applySnapshot]);
 
     const increment = () => {
         const store = getStore();

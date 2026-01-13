@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, NgZone, OnDestroy, OnInit, inject } from "@angular/core";
 
 const getGlobalCount = () => (window.store ? window.store.count : 0);
 const getGlobalLanguage = () => (window.store ? window.store.language : "en");
@@ -133,19 +133,28 @@ export class AppComponent implements OnInit, OnDestroy {
     ];
     activeLanguage = this.languages[0];
     private unsubscribe?: () => void;
-
-    ngOnInit() {
-        if (!window.store) {
-            return;
-        }
-
-        this.unsubscribe = window.store.subscribe(() => {
+    private handleStoreEvent = () => {
+        this.zone.run(() => {
             this.count = window.store ? window.store.count : 0;
             this.mirror = this.count;
             const lang = getGlobalLanguage();
             this.activeLanguage =
                 this.languages.find((item) => item.code === lang) ||
                 this.languages[0];
+        });
+    };
+
+    private zone = inject(NgZone);
+
+    ngOnInit() {
+        window.addEventListener("store:change", this.handleStoreEvent);
+        if (!window.store) {
+            return;
+        }
+
+        this.unsubscribe = window.store.subscribe(() => {
+            // Ensure Angular change detection runs when updates come from other MFEs.
+            this.handleStoreEvent();
         });
 
         const initialLang = getGlobalLanguage();
@@ -158,6 +167,7 @@ export class AppComponent implements OnInit, OnDestroy {
         if (this.unsubscribe) {
             this.unsubscribe();
         }
+        window.removeEventListener("store:change", this.handleStoreEvent);
     }
 
     increment() {

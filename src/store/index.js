@@ -5,6 +5,9 @@ export function createStore() {
 
   const notify = () => {
     subscribers.forEach((fn) => fn())
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('store:change'))
+    }
   }
 
   return {
